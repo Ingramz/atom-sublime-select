@@ -59,7 +59,6 @@ module.exports =
 
   activate: (state) ->
     @observers = []
-    @editor_handler = null
 
     @observers.push atom.config.observe "#{packageName}.mouseButtonTrigger", (newValue) =>
       inputCfg.mouseName = newValue
@@ -69,19 +68,13 @@ module.exports =
       inputCfg.selectKeyName = newValue
       inputCfg.selectKey = selectKeyMap[newValue]
 
-    @observers.push atom.workspace.onDidChangeActivePaneItem @switch_editor_handler
-    @observers.push atom.workspace.onDidAddPane              @switch_editor_handler
-    @observers.push atom.workspace.onDidDestroyPane          @switch_editor_handler
+    @observers.push atom.workspace.observeTextEditors (editor) ->
+      editor_handler = new SublimeSelectEditorHandler(editor, inputCfg)
+      editor_handler.subscribe()
+
+      editor.onDidDestroy ->
+        editor_handler.unsubscribe()
 
   deactivate: ->
-    @editor_handler?.unsubscribe()
     observer.dispose() for observer in @observers
     @observers = null
-    @editor_handler = null
-
-  switch_editor_handler: =>
-    @editor_handler?.unsubscribe()
-    active_editor = atom.workspace.getActiveTextEditor()
-    if active_editor
-      @editor_handler = new SublimeSelectEditorHandler(active_editor, inputCfg)
-      @editor_handler.subscribe()
